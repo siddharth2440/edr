@@ -90,6 +90,15 @@ pub const Event = union(EventType) {
     }
 };
 
+pub const DetectionRule = struct {
+    name: []const u8,
+    description: []const u8,
+    severity: Severity,
+    event_type: EventType,
+    pattern: []const u8,
+    enabled: bool = true,
+};
+
 pub const Alert = struct {
     id: u64,
     timestamp: i64,

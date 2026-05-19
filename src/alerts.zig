@@ -28,6 +28,10 @@ pub const AlertLogger = struct {
         self.file = try std.Io.Dir.openFileAbsolute(self.io, path, .{});
     }
 
+    pub fn log(self: *AlertLogger, alert: events.Alert) void {
+        try self.log_text(alert);
+    }
+
     fn log_text(self: *AlertLogger, alert: events.Alert) !void {
         const severity_str = switch (alert.severity) {
             .info => "INFO",
@@ -46,6 +50,12 @@ pub const AlertLogger = struct {
 
             try file_writer.interface.writeAll(line);
             try file_writer.flush(); // Never Ever Forget to Flush.
+        }
+
+        std.log.warn("[{}] {s} - {s}: {s} (PID: {})", .{ alert.timestamp, severity_str, alert.rule_name, alert.message, alert.pid });
+
+        if (self.verbose) {
+            std.log.warn("  Process: {s}", .{alert.process_name});
         }
     }
 };
