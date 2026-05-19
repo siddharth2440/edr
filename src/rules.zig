@@ -16,6 +16,9 @@ pub const RulesEngine = struct {
             .rules = undefined,
             .rule_count = MAX_RULES,
         };
+
+        engine.load_default_rules();
+        return engine;
     }
 
     fn load_default_rules(self: *RulesEngine) void {
@@ -86,6 +89,28 @@ pub const RulesEngine = struct {
         }
     }
 
+    pub fn evaluate(self: *RulesEngine, event: events.Event) ?events.DetectionRule {
+        for (0..self.rule_count) |i| {
+            const rule = self.rules[i];
+            if (!rule.enabled) continue;
+            if (rule.event_type != @as(events.EventType, @enumFromInt(@intFromEnum(event)))) continue;
+
+            const matches = switch (event) {
+                .process_exec => |e| self.matchPattern(rule.pattern, e.exe_path),
+                .file_create => |e| self.matchPattern(rule.pattern, e.path),
+                .file_write => |e| self.matchPattern(rule.pattern, e.path),
+                .network_connect => |e| self.matchPattern(rule.pattern, e.remote_addr),
+                else => false,
+            };
+
+            if (matches) {
+                return rule;
+            }
+        }
+
+        return null;
+    }
+
     fn match_pattern(self: *RulesEngine, pattern: []const u8, text: []const u8) bool {
         _ = self;
         return std.mem.find(u8, text, pattern) != null;
@@ -118,6 +143,32 @@ pub const RulesEngine = struct {
 
             const data_we_got = read_buf[0..bytes_read];
             try file_contents.appendSlice(self.allocator, data_we_got);
+        }
+
+        var lines = std.mem.splitScalar(u8, file_contents, '\n');
+
+        while (lines.next()) |line| {
+            const trimmed = std.mem.trim(u8, line, " \t\r");
+            if (trimmed.len == 0 or trimmed[0] == '#') continue;
+            if (self.rule_count >= MAX_RULES) break;
+
+            var parts = std.mem.tokenizeScalar(u8, trimmed, '|');
+            const name = parts.next() orelse continue;
+            const severity_str = parts.next() orelse continue;
+            const event_type_str = parts.next() orelse continue;
+            const pattern = parts.next() orelse continue;
+
+            const severity = std.meta.stringToEnum(events.Severity, severity_str) orelse .low;
+            const eventtype = std.meta.stringToEnum(events.EventType, event_type_str) orelse .process_exec;
+
+            self.rules[self.rule_count] = .{
+                .description = name,
+                .severity = severity,
+                .event_type = eventtype,
+                .name = name,
+                .pattern = pattern,
+            };
+            self.rule_count += 1;
         }
     }
 };
