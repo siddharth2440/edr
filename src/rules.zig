@@ -21,6 +21,10 @@ pub const RulesEngine = struct {
         return engine;
     }
 
+    pub fn deinit(self: *RulesEngine) void {
+        _ = self;
+    }
+
     fn load_default_rules(self: *RulesEngine) void {
         const default_rules = [_]events.DetectionRule{
             .{

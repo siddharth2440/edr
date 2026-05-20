@@ -106,7 +106,7 @@ pub const Alert = struct {
     severity: Severity,
     event_type: EventType,
     message: []const u8,
-    details: std.StringHashMap([]const u8),
+    details: ?std.StringHashMap([]const u8),
     pid: u32,
     process_name: []const u8,
 };
